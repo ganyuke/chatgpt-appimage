@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+if [ -z "${APPDIR:-}" ]; then
+    APPDIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+fi
+
+conf=${XDG_CONFIG_HOME:-${HOME:-}/.config}/codex-flags.conf
+
+argc=$#
+
+if [ -f "$conf" ]; then
+    while IFS= read -r word; do
+        if [ -n "$word" ]; then
+            set -- "$@" "$word"
+        fi
+    done <<EOF
+$(sed 's/#.*//' "$conf" | tr -s ' \t' '\n' | sed '/^$/d')
+EOF
+fi
+
+ozone_set=0
+for arg do
+    case $arg in
+        --ozone-platform=*|--ozone-platform-hint=*) ozone_set=1 ;;
+    esac
+done
+
+if [ "$ozone_set" -eq 0 ]; then
+    if [ "${XDG_SESSION_TYPE:-}" = wayland ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        set -- "$@" --ozone-platform=wayland
+    fi
+fi
+
+i=0
+while [ "$i" -lt "$argc" ]; do
+    set -- "$@" "$1"
+    shift
+    i=$((i + 1))
+done
+
+exec "$APPDIR/usr/lib/chatgpt/ChatGPT" "$@"
