@@ -89,15 +89,24 @@ esac
 install -m 0755 /work/AppRun "$appdir/AppRun"
 
 out=/work/dist/ChatGPT-$version-$arch.AppImage
-rm -f "$out"
-ARCH=$arch /opt/appimagetool/AppRun \
-    --runtime-file "/opt/runtime-$arch" \
-    "$appdir" "$out"
+rm -f "$out" "$out.zsync"
+set -- --runtime-file "/opt/runtime-$arch" "$appdir" "$out"
+if [ -n "${GITHUB_REPOSITORY:-}" ]; then
+    owner=${GITHUB_REPOSITORY%%/*}
+    repo=${GITHUB_REPOSITORY#*/}
+    set -- -u "gh-releases-zsync|$owner|$repo|latest|ChatGPT-*-$arch.AppImage.zsync" "$@"
+fi
+(cd /work/dist && ARCH=$arch /opt/appimagetool/AppRun "$@")
 
 offset=$(wc -c < "/opt/runtime-$arch")
 listing=$(unsquashfs -offset "$offset" -l "$out")
 printf '%s\n' "$listing" | grep -q 'usr/lib/chatgpt/ChatGPT$'
 printf '%s\n' "$listing" | grep -q 'squashfs-root/AppRun$'
 printf '%s\n' "$listing" | grep -q '/\.DirIcon$'
+
+if [ -n "${GITHUB_REPOSITORY:-}" ] && [ ! -f "$out.zsync" ]; then
+    printf 'expected %s.zsync but appimagetool did not produce it\n' "$out" >&2
+    exit 1
+fi
 
 printf 'built %s\n' "$out"

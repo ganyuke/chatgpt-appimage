@@ -13,6 +13,7 @@ for arch do
     docker run --rm \
         --user "$(id -u):$(id -g)" \
         -e HOME=/tmp \
+        -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}" \
         -v "$PWD":/work \
         -w /work \
         chatgpt-appimage-builder \

@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libarchive-tools \
         shellcheck \
         squashfs-tools \
+        zsync \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL -o /opt/appimagetool.AppImage \
