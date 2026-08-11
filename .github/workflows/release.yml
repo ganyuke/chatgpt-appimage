@@ -1,0 +1,66 @@
+name: release
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build x86_64
+        run: ./build.sh x86_64
+
+      - name: Determine version
+        id: version
+        run: |
+          set -eu
+          out=$(find dist -name 'ChatGPT-*-x86_64.AppImage')
+          ver=${out#dist/ChatGPT-}
+          ver=${ver%-x86_64.AppImage}
+          printf 'version=%s\n' "$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build aarch64
+        if: steps.existing.outputs.exists == 'false'
+        run: ./build.sh aarch64
+
+      - name: Generate SHA256SUMS
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          set -eu
+          cd dist
+          sha256sum ChatGPT-* > SHA256SUMS
+
+      - name: Create release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          v='${{ steps.version.outputs.version }}'
+          gh release create "v$v" \
+            --title "ChatGPT $v" \
+            --notes "Unofficial AppImage repack of the ChatGPT desktop deb (upstream version $v). Not affiliated with or endorsed by OpenAI." \
+            "dist/ChatGPT-$v-x86_64.AppImage" \
+            "dist/ChatGPT-$v-x86_64.AppImage.zsync" \
+            "dist/ChatGPT-$v-aarch64.AppImage" \
+            "dist/ChatGPT-$v-aarch64.AppImage.zsync" \
+            dist/SHA256SUMS
