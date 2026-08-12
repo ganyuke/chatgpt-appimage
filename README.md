@@ -10,7 +10,11 @@ This repository contains only the build scripts (MIT licensed) and unofficial re
 
 ## Install
 
-Download the AppImage for your architecture from the [releases page](../../releases/latest), then:
+Download the AppImage for your architecture from the [releases page](../../releases/latest).
+
+The recommended way to install it is [AppManager](https://github.com/kem-a/AppManager): it installs the AppImage with drag and drop, integrates it into the application menu, and picks up new releases automatically through the embedded update information, downloading only the changed blocks.
+
+To run it manually instead:
 
 ```sh
 chmod +x ChatGPT-*.AppImage
@@ -19,8 +23,7 @@ chmod +x ChatGPT-*.AppImage
 
 To verify a download, get `SHA256SUMS` from the same release and run `sha256sum -c SHA256SUMS --ignore-missing` in the download directory.
 
-Desktop integration (menu entry, icon) is provided by tools such as AppImageLauncher or appimaged, if you use them.
-The images embed update information, so `appimageupdatetool ChatGPT-*.AppImage` fetches new releases as delta downloads.
+Desktop integration (menu entry, icon) is also provided by tools such as AppImageLauncher or appimaged, and `appimageupdatetool ChatGPT-*.AppImage` fetches new releases as delta downloads.
 
 ## Build it yourself
 
