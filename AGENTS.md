@@ -14,5 +14,7 @@
 
 ## Build and test
 
-- Build and test only in Docker. Never install, never `curl … | sh`, never write outside the working tree.
-- Never run the AppImage (or extracted `AppRun`) on the host while debugging.
+- The primary build path is the RPM-compatible host build in `./build.sh`.
+- Never install host packages automatically. Report missing dependencies instead.
+- All downloaded tools, build state, caches, temporary files, and artifacts created by project scripts must remain inside the repository tree.
+- Never run the produced AppImage (or its extracted `AppRun`) on the host while debugging. Validate its filesystem contents instead.

@@ -11,7 +11,21 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    container: fedora:43
     steps:
+      - name: Install host build dependencies
+        run: >-
+          dnf install -y
+          bsdtar
+          curl
+          desktop-file-utils
+          file
+          git
+          gh
+          ShellCheck
+          squashfs-tools
+          zsync
+
       - uses: actions/checkout@v5
 
       - name: Build x86_64

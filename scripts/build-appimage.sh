@@ -22,14 +22,35 @@ case $arch in
         ;;
 esac
 
-shellcheck /work/AppRun /work/build.sh /work/scripts/build-appimage.sh
+case $(uname -m) in
+    x86_64|amd64) host_arch=x86_64 ;;
+    aarch64|arm64) host_arch=aarch64 ;;
+    *)
+        printf 'unsupported host arch: %s\n' "$(uname -m)" >&2
+        exit 1
+        ;;
+esac
 
-work=/work/build/$arch
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root" || exit 1
+
+appimagetool_version=1.9.1
+runtime_version=20251108
+host_root=$repo_root/build/.host
+appimagetool=$host_root/tools/appimagetool-$appimagetool_version-$host_arch/AppRun
+runtime=$host_root/downloads/runtime-$runtime_version-$arch
+
+if [ ! -x "$appimagetool" ] || [ ! -f "$runtime" ]; then
+    printf 'repo-local AppImage tools are not prepared; run ./build.sh instead\n' >&2
+    exit 1
+fi
+
+work=$repo_root/build/$arch
 appdir=$work/AppDir
 rm -rf "$work"
-mkdir -p "$appdir" "$work/control" /work/dist
+mkdir -p "$appdir" "$work/control" "$repo_root/dist"
 
-curl -fL -o "$work/chatgpt.deb" \
+curl -fL --retry 3 --retry-delay 1 -o "$work/chatgpt.deb" \
     "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_${deb_arch}.deb"
 
 bsdtar -xOf "$work/chatgpt.deb" 'control.tar*' |
@@ -86,19 +107,22 @@ case $(file -b "$bin") in
         ;;
 esac
 
-install -m 0755 /work/AppRun "$appdir/AppRun"
+install -m 0755 "$repo_root/AppRun" "$appdir/AppRun"
 
-out=/work/dist/ChatGPT-$version-$arch.AppImage
+out=$repo_root/dist/ChatGPT-$version-$arch.AppImage
 rm -f "$out" "$out.zsync"
-set -- --runtime-file "/opt/runtime-$arch" "$appdir" "$out"
+set -- --runtime-file "$runtime" "$appdir" "$out"
 if [ -n "${GITHUB_REPOSITORY:-}" ]; then
     owner=${GITHUB_REPOSITORY%%/*}
     repo=${GITHUB_REPOSITORY#*/}
     set -- -u "gh-releases-zsync|$owner|$repo|latest|ChatGPT-*-$arch.AppImage.zsync" "$@"
 fi
-(cd /work/dist && ARCH=$arch /opt/appimagetool/AppRun "$@")
+(
+    cd "$repo_root/dist" || exit 1
+    ARCH=$arch "$appimagetool" "$@"
+)
 
-offset=$(wc -c < "/opt/runtime-$arch")
+offset=$(wc -c < "$runtime")
 listing=$(unsquashfs -offset "$offset" -l "$out")
 printf '%s\n' "$listing" | grep -q 'usr/lib/chatgpt/ChatGPT$'
 printf '%s\n' "$listing" | grep -q 'squashfs-root/AppRun$'
