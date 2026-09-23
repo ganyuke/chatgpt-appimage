@@ -11,38 +11,32 @@ permissions:
   id-token: write
 
 jobs:
-  build-release:
+  build:
     runs-on: ubuntu-latest
     container: fedora:44
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
     steps:
-      - name: Install host build dependencies
-        run: >-
-          dnf install -y
-          bsdtar
-          curl
-          desktop-file-utils
-          file
-          git
-          gh
-          ShellCheck
-          squashfs-tools
-          zsync
+      - name: Install dependencies
+        run: |
+          dnf install -y bsdtar curl desktop-file-utils file git gh ShellCheck squashfs-tools zsync
 
       - uses: actions/checkout@v7
 
-      - name: Build x86_64
-        run: ./build.sh x86_64
+      - name: Build artifact
+        run: ./build.sh ${{ matrix.arch }}
 
       - name: Determine version
         id: version
         run: |
           set -eu
-          out=$(find dist -name 'ChatGPT-*-x86_64.AppImage')
+          out=$(find dist -name 'ChatGPT-*-${{ matrix.arch }}.AppImage')
           ver=${out#dist/ChatGPT-}
-          ver=${ver%-x86_64.AppImage}
+          ver=${ver%-${{ matrix.arch }}.AppImage}
           printf 'version=%s\n' "$ver" >> "$GITHUB_OUTPUT"
 
-      - name: Check for existing release
+      - name: Check existing release
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -54,25 +48,63 @@ jobs:
             printf 'exists=false\n' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build aarch64
+      - name: Upload build artifacts
         if: steps.existing.outputs.exists == 'false'
-        run: ./build.sh aarch64
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.arch }}
+          path: dist/*
 
-      - name: Log AppImage SHA256 checksums
-        if: steps.existing.outputs.exists == 'false'
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Install dependencies
+        run: dnf install -y git gh
+
+      - uses: actions/checkout@v7
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      # skip release if no artifacts were uploaded (implies release already exists)
+      - name: Check for dist folder
+        id: check
+        run: |
+          if [ -d dist ] && [ "$(ls -A dist)" ]; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine version
+        if: steps.check.outputs.has_files == 'true'
+        id: version
         run: |
           set -eu
-          sha256sum dist/ChatGPT-*.AppImage
+          out=$(find dist -name 'ChatGPT-*-x86_64.AppImage')
+          ver=${out#dist/ChatGPT-}
+          ver=${ver%-x86_64.AppImage}
+          printf 'version=%s\n' "$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Log SHA256 checksums
+        if: steps.check.outputs.has_files == 'true'
+        run: sha256sum dist/ChatGPT-*.AppImage
 
       - name: Generate SHA256SUMS
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.check.outputs.has_files == 'true'
         run: |
           set -eu
           cd dist
           sha256sum ChatGPT-* > SHA256SUMS
 
       - name: Attest release assets
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.check.outputs.has_files == 'true'
         uses: actions/attest@v4
         with:
           subject-path: |
@@ -80,7 +112,7 @@ jobs:
             dist/SHA256SUMS
 
       - name: Verify attestations
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.check.outputs.has_files == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -94,7 +126,7 @@ jobs:
           done
 
       - name: Create release
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.check.outputs.has_files == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -108,10 +140,5 @@ jobs:
             --draft \
             --title "ChatGPT $v" \
             --notes "$notes"
-          gh release upload "$tag" \
-            "dist/ChatGPT-$v-x86_64.AppImage" \
-            "dist/ChatGPT-$v-x86_64.AppImage.zsync" \
-            "dist/ChatGPT-$v-aarch64.AppImage" \
-            "dist/ChatGPT-$v-aarch64.AppImage.zsync" \
-            dist/SHA256SUMS
+          gh release upload "$tag" dist/*
           gh release edit "$tag" --draft=false
