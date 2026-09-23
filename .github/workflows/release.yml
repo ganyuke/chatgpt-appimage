@@ -6,12 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
+  attestations: write
   contents: write
+  id-token: write
 
 jobs:
   build-release:
     runs-on: ubuntu-latest
-    container: fedora:43
+    container: fedora:44
     steps:
       - name: Install host build dependencies
         run: >-
@@ -26,7 +28,7 @@ jobs:
           squashfs-tools
           zsync
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Build x86_64
         run: ./build.sh x86_64
@@ -56,12 +58,40 @@ jobs:
         if: steps.existing.outputs.exists == 'false'
         run: ./build.sh aarch64
 
+      - name: Log AppImage SHA256 checksums
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          set -eu
+          sha256sum dist/ChatGPT-*.AppImage
+
       - name: Generate SHA256SUMS
         if: steps.existing.outputs.exists == 'false'
         run: |
           set -eu
           cd dist
           sha256sum ChatGPT-* > SHA256SUMS
+
+      - name: Attest release assets
+        if: steps.existing.outputs.exists == 'false'
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/ChatGPT-*
+            dist/SHA256SUMS
+
+      - name: Verify attestations
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          signer="${GITHUB_REPOSITORY}/.github/workflows/release.yml"
+          for asset in dist/ChatGPT-* dist/SHA256SUMS; do
+            gh attestation verify "$asset" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "$signer" \
+              --deny-self-hosted-runners
+          done
 
       - name: Create release
         if: steps.existing.outputs.exists == 'false'
@@ -70,11 +100,16 @@ jobs:
         run: |
           set -eu
           v='${{ steps.version.outputs.version }}'
-          gh release create "v$v" \
+          tag="v$v"
+          notes="Unofficial AppImage repack of the ChatGPT desktop deb (upstream version $v). Not affiliated with or endorsed by OpenAI."
+          gh release create "$tag" \
+            --draft \
             --title "ChatGPT $v" \
-            --notes "Unofficial AppImage repack of the ChatGPT desktop deb (upstream version $v). Not affiliated with or endorsed by OpenAI." \
+            --notes "$notes"
+          gh release upload "$tag" \
             "dist/ChatGPT-$v-x86_64.AppImage" \
             "dist/ChatGPT-$v-x86_64.AppImage.zsync" \
             "dist/ChatGPT-$v-aarch64.AppImage" \
             "dist/ChatGPT-$v-aarch64.AppImage.zsync" \
             dist/SHA256SUMS
+          gh release edit "$tag" --draft=false

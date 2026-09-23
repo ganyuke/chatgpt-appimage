@@ -2,7 +2,26 @@
 
 like upstream, but everything is self-contained and you can build everything locally on a Fedora 44 system.
 
-to build an image yourself on Fedora, you can do:
+and also has immutable releases so you can trust that the only one siphoning away your Codex usage is yourself.
+
+## verifying binary releases
+
+you should probably check that the binaries you're downloading are from GitHub Actions and i haven't tampered with them.
+
+you can do this with the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify ./ChatGPT-VERSION-x86_64.AppImage \
+  --repo ganyuke/chatgpt-appimage \
+  --signer-workflow ganyuke/chatgpt-appimage/.github/workflows/release.yml \
+  --deny-self-hosted-runners
+```
+
+you can also see the SHA-256 hash of each AppImage in the GitHub Actions log, so you can verify that way, too.
+
+## building on your machine
+
+if you don't trust me, then you can build on your own machine. on Fedora, you can do:
 
 ```bash
 git clone https://github.com/ganyuke/chatgpt-appimage

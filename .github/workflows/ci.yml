@@ -8,12 +8,12 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    container: fedora:43
+    container: fedora:44
     steps:
       - name: Install checkout and lint dependencies
         run: dnf install -y git ShellCheck
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: shellcheck
         run: shellcheck AppRun build.sh scripts/check-host-deps.sh scripts/prepare-tools.sh scripts/build-appimage.sh
