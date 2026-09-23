@@ -99,10 +99,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           v='${{ steps.version.outputs.version }}'
           tag="v$v"
           notes="Unofficial AppImage repack of the ChatGPT desktop deb (upstream version $v). Not affiliated with or endorsed by OpenAI."
           gh release create "$tag" \
+            --target "$GITHUB_SHA" \
             --draft \
             --title "ChatGPT $v" \
             --notes "$notes"
