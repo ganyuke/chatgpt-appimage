@@ -1,8 +1,10 @@
 # chatgpt-appimage
 
-like upstream, but everything is self-contained and you can build everything locally on a Fedora 44 system.
+like upstream, but the local build doesn't need Docker and is tailored to a Fedora Workstation system (specifically Fedora 44).
 
-and also has immutable releases so you can trust that the only one siphoning away your Codex usage is yourself.
+and also has immutable release and artifact attestation so you can trust that the only one siphoning away your Codex usage is yourself.
+
+see [upstream](https://github.com/mbotezatu/chatgpt-appimage) for usage details. 
 
 ## verifying binary releases
 
