@@ -13,18 +13,20 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: fedora:44
+    container: registry.fedoraproject.org/fedora-minimal:latest
     strategy:
       matrix:
         arch: [x86_64, aarch64]
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y bsdtar curl desktop-file-utils file git gh ShellCheck squashfs-tools zsync
+          dnf5 install -y --nodocs --setopt=install_weak_deps=False --setopt=max_parallel_downloads=10 --setopt=deltarpm=0 -y bsdtar curl desktop-file-utils file git gh squashfs-tools zsync
 
       - uses: actions/checkout@v7
 
       - name: Build artifact
+        env:
+          SKIP_SHELLCHECK: 1
         run: ./build.sh ${{ matrix.arch }}
 
       - name: Determine version
@@ -58,15 +60,15 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    container: fedora:44
+    container: registry.fedoraproject.org/fedora-minimal:latest
     steps:
       - name: Install dependencies
-        run: dnf install -y git gh
+        run: dnf5 install -y --nodocs --setopt=install_weak_deps=False --setopt=max_parallel_downloads=10 --setopt=deltarpm=0 -y git gh
 
       - uses: actions/checkout@v7
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           path: dist

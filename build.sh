@@ -26,7 +26,10 @@ export XDG_STATE_HOME="$host_root/state"
 export TMPDIR="$host_root/tmp"
 
 sh ./scripts/check-host-deps.sh
-shellcheck AppRun build.sh scripts/check-host-deps.sh scripts/prepare-tools.sh scripts/build-appimage.sh
+
+if [ "${SKIP_SHELLCHECK:-0}" != 1 ]; then
+    shellcheck AppRun build.sh scripts/check-host-deps.sh scripts/prepare-tools.sh scripts/build-appimage.sh
+fi
 
 for arch do
     sh ./scripts/prepare-tools.sh "$arch"

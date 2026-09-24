@@ -7,7 +7,6 @@ for command_name in \
     curl \
     desktop-file-validate \
     file \
-    shellcheck \
     sha256sum \
     unsquashfs \
     zsyncmake
@@ -22,10 +21,10 @@ if [ -n "$missing" ]; then
     cat >&2 <<'EOF_PACKAGES'
 
 Fedora/RHEL-family package names:
-  bsdtar curl desktop-file-utils file ShellCheck squashfs-tools zsync
+  bsdtar curl desktop-file-utils file squashfs-tools zsync
 
 On Fedora, install them with:
-  sudo dnf install bsdtar curl desktop-file-utils file ShellCheck squashfs-tools zsync
+  sudo dnf install bsdtar curl desktop-file-utils file squashfs-tools zsync
 
 The build itself does not install packages or write build state outside this repository.
 EOF_PACKAGES
