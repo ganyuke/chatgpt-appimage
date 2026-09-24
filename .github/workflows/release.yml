@@ -60,11 +60,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora-minimal:latest
     steps:
-      - name: Install dependencies
-        run: dnf5 install -y --nodocs --setopt=install_weak_deps=False --setopt=max_parallel_downloads=10 --setopt=deltarpm=0 -y git gh
-
       - uses: actions/checkout@v7
 
       - name: Download all build artifacts
