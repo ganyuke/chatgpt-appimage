@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          dnf5 install -y --nodocs --setopt=install_weak_deps=False --setopt=max_parallel_downloads=10 --setopt=deltarpm=0 -y bsdtar curl desktop-file-utils file git gh squashfs-tools zsync
+          dnf5 install -y --nodocs --setopt=install_weak_deps=False --setopt=max_parallel_downloads=10 --setopt=deltarpm=0 -y bsdtar curl desktop-file-utils file git squashfs-tools zsync
 
       - uses: actions/checkout@v7
 
@@ -38,20 +38,7 @@ jobs:
           ver=${ver%-${{ matrix.arch }}.AppImage}
           printf 'version=%s\n' "$ver" >> "$GITHUB_OUTPUT"
 
-      - name: Check existing release
-        id: existing
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
-          else
-            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Upload build artifacts
-        if: steps.existing.outputs.exists == 'false'
         uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.arch }}
@@ -70,18 +57,7 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # skip release if no artifacts were uploaded (implies release already exists)
-      - name: Check for dist folder
-        id: check
-        run: |
-          if [ -d dist ] && [ "$(ls -A dist)" ]; then
-            echo "has_files=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_files=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Determine version
-        if: steps.check.outputs.has_files == 'true'
         id: version
         run: |
           set -eu
@@ -90,19 +66,30 @@ jobs:
           ver=${ver%-x86_64.AppImage}
           printf 'version=%s\n' "$ver" >> "$GITHUB_OUTPUT"
 
+      - name: Check existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Log SHA256 checksums
-        if: steps.check.outputs.has_files == 'true'
         run: sha256sum dist/ChatGPT-*.AppImage
 
       - name: Generate SHA256SUMS
-        if: steps.check.outputs.has_files == 'true'
+        if: steps.existing.outputs.exists == 'false'
         run: |
           set -eu
           cd dist
           sha256sum ChatGPT-* > SHA256SUMS
 
       - name: Attest release assets
-        if: steps.check.outputs.has_files == 'true'
+        if: steps.existing.outputs.exists == 'false'
         uses: actions/attest@v4
         with:
           subject-path: |
@@ -110,7 +97,7 @@ jobs:
             dist/SHA256SUMS
 
       - name: Verify attestations
-        if: steps.check.outputs.has_files == 'true'
+        if: steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -124,7 +111,7 @@ jobs:
           done
 
       - name: Create release
-        if: steps.check.outputs.has_files == 'true'
+        if: steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
